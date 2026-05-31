@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>PV Meeting - Transcription Groq</title>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+
+<style>
+
+body{
+    margin:0;
+    padding:40px;
+    background:#0f172a;
+    color:white;
+    font-family:Arial,sans-serif;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+    background:#111827;
+    padding:30px;
+    border-radius:20px;
+}
+
+h1{
+    color:#38bdf8;
+}
+
+.field{
+    margin-bottom:20px;
+}
+
+label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:bold;
+}
+
+input[type="password"],
+input[type="file"]{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #334155;
+    background:#1e293b;
+    color:white;
+    box-sizing:border-box;
+}
+
+.btn-row{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+button{
+    background:#0ea5e9;
+    color:white;
+    border:none;
+    padding:14px 20px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:bold;
+    transition:all .2s;
+}
+
+button:hover{
+    background:#0284c7;
+}
+
+button:disabled{
+    background:#334155;
+    color:#64748b;
+    cursor:not-allowed;
+}
+
+#pauseBtn{
+    background:#f59e0b;
+}
+
+#pauseBtn:hover:not(:disabled){
+    background:#d97706;
+}
+
+#pauseBtn.resuming{
+    background:#22c55e;
+}
+
+#pauseBtn.resuming:hover:not(:disabled){
+    background:#16a34a;
+}
+
+#apiBadge{
+    display:inline-block;
+    margin-top:10px;
+    padding:8px 12px;
+    border-radius:999px;
+    background:#dc2626;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.status{
+    margin-top:20px;
+    color:#cbd5e1;
+}
+
+.success{
+    color:#22c55e;
+}
+
+.error{
+    color:#ef4444;
+}
+
+.debug{
+    margin-top:10px;
+    padding:10px;
+    background:#1e293b;
+    border-radius:8px;
+    font-size:13px;
+    color:#94a3b8;
+    max-height:150px;
+    overflow-y:auto;
+    font-family:monospace;
+}
+
+textarea{
+    width:100%;
+    min-height:450px;
+    margin-top:20px;
+    padding:15px;
+    border-radius:12px;
+    border:1px solid #334155;
+    background:#020617;
+    color:#e2e8f0;
+    resize:vertical;
+    box-sizing:border-box;
+}
+
+#liveCursor{
+    display:none;
+    margin-top:10px;
+    color:#38bdf8;
+    font-weight:bold;
+}
+
+.progressBar{
+    width:100%;
+    height:20px;
+    background:#1e293b;
+    border-radius:999px;
+    overflow:hidden;
+    margin-top:20px;
+}
+
+.progressFill{
+    height:100%;
+    width:0%;
+    background:#0ea5e9;
+    transition:width .3s;
+}
+
+/* Bouton téléchargement plus discret mais visible */
+
+#downloadBtn{
+    background:linear-gradient(135deg,#22c55e,#16a34a);
+    color:white;
+    font-size:15px;
+    font-weight:bold;
+    padding:12px 18px;
+    border-radius:12px;
+    border:2px solid #4ade80;
+    box-shadow:
+        0 6px 18px rgba(34,197,94,0.25);
+    transition:all .2s ease;
+    animation:pulseDownload 2.5s infinite;
+}
+
+#downloadBtn:hover:not(:disabled){
+    transform:translateY(-1px);
+    background:linear-gradient(135deg,#16a34a,#15803d);
+    box-shadow:
+        0 10px 22px rgba(34,197,94,0.35);
+}
+
+#downloadBtn:disabled{
+    background:#334155;
+    border:2px solid #475569;
+    box-shadow:none;
+    animation:none;
+}
+
+@keyframes pulseDownload{
+
+    0%{
+        box-shadow:
+            0 0 0 0 rgba(34,197,94,0.35),
+            0 6px 18px rgba(34,197,94,0.25);
+    }
+
+    70%{
+        box-shadow:
+            0 0 0 8px rgba(34,197,94,0),
+            0 6px 18px rgba(34,197,94,0.25);
+    }
+
+    100%{
+        box-shadow:
+            0 0 0 0 rgba(34,197,94,0),
+            0 6px 18px rgba(34,197,94,0.25);
+    }
+}
+
+#analyseSection{
+    margin-top:30px;
+    border-top:1px solid #1e293b;
+    padding-top:30px;
+}
+
+#analyseBtn{
+    background:#8b5cf6;
+}
+
+#analyseBtn:hover:not(:disabled){
+    background:#7c3aed;
+}
+
+.analyse-result{
+    display:none;
+    margin-top:20px;
+}
+
+.analyse-block{
+    background:#1e293b;
+    border-radius:12px;
+    padding:20px;
+    margin-bottom:16px;
+}
+
+.analyse-block h3{
+    margin:0 0 14px 0;
+    font-size:15px;
+}
+
+.analyse-block .content{
+    color:#cbd5e1;
+    font-size:14px;
+    line-height:1.7;
+    white-space:pre-wrap;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎙️ PV Meeting - Transcription Longue</h1>
+
+<div class="field">
+<label>Clé API Groq</label>
+<input id="groqApiKey" type="password" placeholder="gsk_...">
+<div id="apiBadge">API invalide</div>
+</div>
+
+<div class="field">
+<label>Fichier audio / vidéo</label>
+<input id="audioFile" type="file" accept="audio/*,video/*">
+</div>
+
+<div class="btn-row">
+<button id="startBtn">Lancer la transcription</button>
+<button id="pauseBtn" disabled>⏸ Pause</button>
+</div>
+
+<div class="status" id="status"></div>
+
+<div id="liveCursor">
+⏺ Transcription en cours...
+</div>
+
+<div class="progressBar">
+<div class="progressFill" id="progressFill"></div>
+</div>
+
+<div class="debug" id="debugLog">
+📋 Journal de bord...
+</div>
+
+<div style="
+display:flex;
+justify-content:space-between;
+align-items:center;
+flex-wrap:wrap;
+gap:10px;
+margin-top:20px;
+">
+
+<label for="importTxt" style="margin:0;">
+
+<span style="
+display:inline-block;
+background:#0f766e;
+color:white;
+padding:10px 16px;
+border-radius:10px;
+cursor:pointer;
+font-size:14px;
+font-weight:bold;
+">
+📂 Charger une transcription .txt
+</span>
+
+<input
+id="importTxt"
+type="file"
+accept=".txt"
+style="display:none;"
+>
+
+</label>
+
+<button id="downloadBtn" disabled>
+⬇️ Télécharger le .txt
+</button>
+
+</div>
+
+<textarea
+id="result"
+placeholder="La transcription apparaîtra ici..."
+></textarea>
+
+<div id="analyseSection">
+
+<h2 style="color:#38bdf8;">
+🧠 Analyse de la réunion
+</h2>
+
+<p style="color:#64748b; font-size:13px;">
+Analyse optimisée anti dépassement TPM Groq
+</p>
+
+<div class="btn-row">
+<button id="analyseBtn">
+✨ Analyser la transcription
+</button>
+</div>
+
+<div id="analyseStatus" class="status"></div>
+
+<div class="analyse-result" id="analyseResult">
+
+<div class="analyse-block">
+<h3>📋 Résumé</h3>
+<div class="content" id="resumeContent"></div>
+</div>
+
+<div class="analyse-block">
+<h3>✅ Décisions</h3>
+<div class="content" id="decisionsContent"></div>
+</div>
+
+<div class="analyse-block">
+<h3>🎯 Actions</h3>
+<div class="content" id="actionsContent"></div>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+
+const { createFFmpeg, fetchFile } = FFmpeg;
+
+function log(msg){
+
+    console.log(msg);
+
+    const el =
+        document.getElementById('debugLog');
+
+    el.innerHTML += '<br>' + msg;
+
+    el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(message, type=''){
+
+    const el =
+        document.getElementById('status');
+
+    el.className = `status ${type}`;
+
+    el.textContent = message;
+
+    log('▶ ' + message);
+}
+
+function updateProgress(percent){
+
+    document
+        .getElementById('progressFill')
+        .style.width = percent + '%';
+}
+
+function getGroqKey(){
+
+    return document
+        .getElementById('groqApiKey')
+        .value
+        .trim();
+}
+
+async function validateGroqKey(){
+
+    const apiKey = getGroqKey();
+
+    if(!apiKey){
+        return false;
+    }
+
+    try{
+
+        const response = await fetch(
+            'https://api.groq.com/openai/v1/models',
+            {
+                method:'GET',
+                headers:{
+                    Authorization:`Bearer ${apiKey}`
+                }
+            }
+        );
+
+        if(!response.ok){
+            return false;
+        }
+
+        document.getElementById('apiBadge')
+            .textContent = 'Groq connecté';
+
+        document.getElementById('apiBadge')
+            .style.background = '#16a34a';
+
+        return true;
+
+    }catch(err){
+
+        return false;
+    }
+}
+
+async function sendChunkToGroq(file){
+
+    const apiKey = getGroqKey();
+
+    const formData = new FormData();
+
+    formData.append('file', file);
+    formData.append('model', 'whisper-large-v3');
+    formData.append('response_format', 'verbose_json');
+
+    const response = await fetch(
+        'https://api.groq.com/openai/v1/audio/transcriptions',
+        {
+            method:'POST',
+            headers:{
+                Authorization:`Bearer ${apiKey}`
+            },
+            body:formData
+        }
+    );
+
+    if(!response.ok){
+
+        const err = await response.text();
+
+        throw new Error(err);
+    }
+
+    return response.json();
+}
+
+async function splitAndTranscribe(file){
+
+    const ffmpeg = createFFmpeg({
+        log:false,
+        corePath:'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+
+    setStatus('Chargement FFmpeg...');
+
+    await ffmpeg.load();
+
+    ffmpeg.FS(
+        'writeFile',
+        file.name,
+        await fetchFile(file)
+    );
+
+    setStatus('Extraction audio...');
+
+    await ffmpeg.run(
+        '-i',
+        file.name,
+        '-vn',
+        '-acodec',
+        'pcm_s16le',
+        '-ar',
+        '16000',
+        '-ac',
+        '1',
+        'audio.wav'
+    );
+
+    setStatus('Découpage...');
+
+    await ffmpeg.run(
+        '-i',
+        'audio.wav',
+        '-f',
+        'segment',
+        '-segment_time',
+        '300',
+        '-c',
+        'copy',
+        'chunk_%03d.wav'
+    );
+
+    const files =
+        ffmpeg.FS('readdir', '/');
+
+    const chunks = files
+        .filter(name => name.startsWith('chunk_'))
+        .sort();
+
+    let finalText = '';
+
+    for(let i=0; i<chunks.length; i++){
+
+        updateProgress(
+            Math.floor(
+                ((i+1)/chunks.length)*100
+            )
+        );
+
+        setStatus(
+            `Transcription ${i+1}/${chunks.length}`
+        );
+
+        const data =
+            ffmpeg.FS('readFile', chunks[i]);
+
+        const blob = new Blob(
+            [data.buffer],
+            {type:'audio/wav'}
+        );
+
+        const chunkFile = new File(
+            [blob],
+            chunks[i],
+            {type:'audio/wav'}
+        );
+
+        const json =
+            await sendChunkToGroq(chunkFile);
+
+        finalText += '\n' + (json.text || '');
+
+        document.getElementById('result')
+            .value = finalText;
+    }
+
+    return finalText;
+}
+
+window.addEventListener(
+    'DOMContentLoaded',
+    ()=>{
+
+        document
+            .getElementById('startBtn')
+            .addEventListener(
+                'click',
+                async ()=>{
+
+                    try{
+
+                        const fileInput =
+                            document.getElementById('audioFile');
+
+                        if(!fileInput.files.length){
+
+                            alert('Sélectionne un fichier');
+
+                            return;
+                        }
+
+                        const valid =
+                            await validateGroqKey();
+
+                        if(!valid){
+
+                            throw new Error(
+                                'Clé API invalide'
+                            );
+                        }
+
+                        const file =
+                            fileInput.files[0];
+
+                        const finalText =
+                            await splitAndTranscribe(file);
+
+                        document.getElementById('result')
+                            .value = finalText;
+
+                        document.getElementById('downloadBtn')
+                            .disabled = false;
+
+                        setStatus(
+                            '✅ Transcription terminée',
+                            'success'
+                        );
+
+                    }catch(err){
+
+                        console.error(err);
+
+                        setStatus(
+                            err.message,
+                            'error'
+                        );
+                    }
+                }
+            );
+
+        document
+            .getElementById('downloadBtn')
+            .addEventListener(
+                'click',
+                ()=>{
+
+                    const text =
+                        document
+                            .getElementById('result')
+                            .value;
+
+                    const blob = new Blob(
+                        [text],
+                        {
+                            type:'text/plain;charset=utf-8'
+                        }
+                    );
+
+                    const url =
+                        URL.createObjectURL(blob);
+
+                    const a =
+                        document.createElement('a');
+
+                    a.href = url;
+
+                    a.download =
+                        'transcription.txt';
+
+                    a.click();
+
+                    URL.revokeObjectURL(url);
+                }
+            );
+
+        document
+            .getElementById('importTxt')
+            .addEventListener(
+                'change',
+                (e)=>{
+
+                    const file =
+                        e.target.files[0];
+
+                    if(!file) return;
+
+                    const reader =
+                        new FileReader();
+
+                    reader.onload = (ev)=>{
+
+                        document
+                            .getElementById('result')
+                            .value =
+                            ev.target.result;
+
+                        document
+                            .getElementById('downloadBtn')
+                            .disabled = false;
+                    };
+
+                    reader.readAsText(
+                        file,
+                        'utf-8'
+                    );
+                }
+            );
+    }
+);
+
+</script>
+
+</body>
+</html>
+
+
