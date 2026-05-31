@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PV Meeting - Transcription Groq</title>
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<style>
+body{ margin:0; padding:40px; background:#0f172a; color:white; font-family:Arial,sans-serif; }
+.container{ max-width:1000px; margin:auto; background:#111827; padding:30px; border-radius:20px; }
+h1{ color:#38bdf8; }
+.field{ margin-bottom:20px; }
+label{ display:block; margin-bottom:8px; font-weight:bold; }
+input[type="password"], input[type="file"]{
+    width:100%; padding:12px; border-radius:10px;
+    border:1px solid #334155; background:#1e293b; color:white; box-sizing:border-box;
+}
+.btn-row{ display:flex; gap:12px; flex-wrap:wrap; }
+button{ background:#0ea5e9; color:white; border:none; padding:14px 20px; border-radius:10px; cursor:pointer; font-size:16px; font-weight:bold; transition:background .2s; }
+button:hover{ background:#0284c7; }
+button:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
+#pauseBtn{ background:#f59e0b; }
+#pauseBtn:hover:not(:disabled){ background:#d97706; }
+#pauseBtn.resuming{ background:#22c55e; }
+#pauseBtn.resuming:hover:not(:disabled){ background:#16a34a; }
+#apiBadge{ display:inline-block; margin-top:10px; padding:8px 12px; border-radius:999px; background:#dc2626; font-size:14px; font-weight:bold; }
+.status{ margin-top:20px; color:#cbd5e1; }
+.success{ color:#22c55e; }
+.error{ color:#ef4444; }
+.debug{ margin-top:10px; padding:10px; background:#1e293b; border-radius:8px; font-size:13px; color:#94a3b8; max-height:150px; overflow-y:auto; font-family:monospace; }
+textarea{ width:100%; min-height:450px; margin-top:20px; padding:15px; border-radius:12px; border:1px solid #334155; background:#020617; color:#e2e8f0; resize:vertical; box-sizing:border-box; }
+#liveCursor{ display:none; margin-top:10px; color:#38bdf8; font-weight:bold; }
+.progressBar{ width:100%; height:20px; background:#1e293b; border-radius:999px; overflow:hidden; margin-top:20px; }
+.progressFill{ height:100%; width:0%; background:#0ea5e9; transition:width .3s; }
+#downloadBtn{ background:#6366f1; }
+#downloadBtn:hover:not(:disabled){ background:#4f46e5; }
+#downloadBtn:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
+
+/* ── Section Analyse ── */
+#analyseSection{ margin-top:30px; border-top:1px solid #1e293b; padding-top:30px; }
+#analyseSection h2{ color:#38bdf8; margin-bottom:6px; font-size:20px; }
+#analyseSection p.hint{ color:#64748b; font-size:13px; margin:0 0 18px 0; }
+#analyseBtn{ background:#8b5cf6; }
+#analyseBtn:hover:not(:disabled){ background:#7c3aed; }
+#analyseBtn:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
+#downloadAnalyseBtn{ background:#6366f1; }
+#downloadAnalyseBtn:hover:not(:disabled){ background:#4f46e5; }
+#downloadAnalyseBtn:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
+#analyseStatus{ margin-top:12px; color:#cbd5e1; font-size:14px; min-height:20px; }
+#analyseStatus.loading{ color:#f59e0b; }
+#analyseStatus.success{ color:#22c55e; }
+#analyseStatus.error{ color:#ef4444; }
+.analyse-result{ display:none; margin-top:20px; }
+.analyse-block{ background:#1e293b; border-radius:12px; padding:20px; margin-bottom:16px; }
+.analyse-block h3{ margin:0 0 14px 0; font-size:15px; display:flex; align-items:center; gap:8px; }
+.analyse-block h3 span.icon{ font-size:20px; }
+.analyse-block .content{ color:#cbd5e1; font-size:14px; line-height:1.7; white-space:pre-wrap; }
+.action-item{ display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid #334155; }
+.action-item:last-child{ border-bottom:none; }
+.action-who{ background:#0ea5e9; color:white; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:bold; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.action-who.unknown{ background:#475569; }
+.action-text{ color:#e2e8f0; font-size:14px; line-height:1.5; }
+
+#resumeBanner{ display:none; margin-bottom:20px; padding:16px 20px; background:#1e293b; border-left:4px solid #38bdf8; border-radius:10px; }
+#resumeBanner p{ margin:0 0 12px 0; color:#93c5fd; font-weight:bold; font-size:15px; }
+#resumeBanner small{ color:#64748b; display:block; margin-bottom:10px; font-size:12px; }
+.resume-btns{ display:flex; gap:10px; flex-wrap:wrap; }
+#resumeYesBtn{ background:#22c55e; font-size:14px; padding:10px 16px; }
+#resumeYesBtn:hover{ background:#16a34a; }
+#resumeNoBtn{ background:#ef4444; font-size:14px; padding:10px 16px; }
+#resumeNoBtn:hover{ background:#dc2626; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🎙️ PV Meeting - Transcription Longue</h1>
+
+<!-- Bannière de reprise session précédente -->
+<div id="resumeBanner">
+  <p>💾 Session précédente détectée</p>
+  <small id="resumeInfo"></small>
+  <div class="resume-btns">
+    <button id="resumeYesBtn">▶ Reprendre là où j'en étais</button>
+    <button id="resumeNoBtn">🗑️ Recommencer depuis le début</button>
+  </div>
+</div>
+
+<div class="field">
+    <label>Clé API Groq</label>
+    <input id="groqApiKey" type="password" placeholder="gsk_...">
+    <div id="apiBadge">API invalide</div>
+</div>
+
+<div class="field">
+    <label>Fichier audio / vidéo</label>
+    <input id="audioFile" type="file" accept="audio/*,video/*">
+</div>
+
+<div class="btn-row">
+    <button id="startBtn">Lancer la transcription</button>
+    <button id="pauseBtn" disabled>⏸ Pause</button>
+</div>
+
+<div id="pauseOverlay">⏸ Transcription en pause — cliquez sur "▶ Reprendre" pour continuer.</div>
+
+<div class="status" id="status"></div>
+<div id="liveCursor">⏺ Transcription en cours...</div>
+<div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+<div class="debug" id="debugLog">📋 Journal de bord...</div>
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px;">
+    <label for="importTxt" style="margin:0;">
+        <span style="display:inline-block; background:#0f766e; color:white; padding:10px 16px; border-radius:10px; cursor:pointer; font-size:14px; font-weight:bold;">📂 Charger une transcription .txt</span>
+        <input id="importTxt" type="file" accept=".txt" style="display:none;">
+    </label>
+    <button id="downloadBtn" disabled>💾 Télécharger en .txt</button>
+</div>
+<textarea id="result" placeholder="La transcription apparaîtra ici..."></textarea>
+
+<!-- ── Section Analyse ── -->
+<div id="analyseSection">
+  <h2>🧠 Analyse de la réunion</h2>
+  <p class="hint">Utilise ta clé Groq (déjà renseignée) pour générer un résumé structuré et extraire les actions à mener — 100% gratuit.</p>
+  <div class="btn-row">
+    <button id="analyseBtn">✨ Analyser la transcription</button>
+    <button id="downloadAnalyseBtn" disabled>💾 Télécharger l'analyse (.txt)</button>
+  </div>
+  <div id="analyseStatus"></div>
+
+  <div class="analyse-result" id="analyseResult">
+
+    <!-- Résumé -->
+    <div class="analyse-block">
+      <h3><span class="icon">📋</span> Résumé de la réunion</h3>
+      <div class="content" id="resumeContent"></div>
+    </div>
+
+    <!-- Points clés -->
+    <div class="analyse-block">
+      <h3><span class="icon">💡</span> Points essentiels discutés</h3>
+      <div class="content" id="pointsContent"></div>
+    </div>
+
+    <!-- Décisions -->
+    <div class="analyse-block">
+      <h3><span class="icon">✅</span> Décisions prises</h3>
+      <div class="content" id="decisionsContent"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="analyse-block">
+      <h3><span class="icon">🎯</span> Actions à mener</h3>
+      <div id="actionsContent"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+
+const SAVE_KEY = 'pv_meeting_session';
+
+// ── Persistance localStorage ─────────────────────────────────────────
+function saveSession(text, chunkIndex, totalChunks, fileName){
+    try{
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+            text,
+            chunkIndex,   // prochain chunk à traiter (déjà traité = chunkIndex-1)
+            totalChunks,
+            fileName,
+            savedAt: new Date().toISOString()
+        }));
+    }catch(e){ console.warn('Impossible de sauvegarder la session', e); }
+}
+
+function loadSession(){
+    try{
+        const raw = localStorage.getItem(SAVE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+}
+
+function clearSession(){
+    localStorage.removeItem(SAVE_KEY);
+}
+
+function formatDate(iso){
+    try{
+        const d = new Date(iso);
+        return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})
+             + ' à ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    }catch(e){ return iso; }
+}
+
+function checkAndShowResumeBanner(){
+    const session = loadSession();
+    if(!session) return;
+    const banner = document.getElementById('resumeBanner');
+    const info = document.getElementById('resumeInfo');
+    const chunksLeft = session.totalChunks - session.chunkIndex;
+    info.textContent = `Fichier : ${session.fileName} — ${session.chunkIndex}/${session.totalChunks} morceaux traités — sauvegardé le ${formatDate(session.savedAt)} — ${chunksLeft} morceau(x) restant(s)`;
+    banner.style.display = 'block';
+}
+// ────────────────────────────────────────────────────────────────────
+
+// ── État pause/reprise en cours de session ───────────────────────────
+let isPaused = false;
+let resumeResolve = null;
+
+function waitIfPaused(){
+    if(!isPaused) return Promise.resolve();
+    return new Promise(resolve => { resumeResolve = resolve; });
+}
+// ────────────────────────────────────────────────────────────────────
+
+function log(msg){
+    console.log(msg);
+    const el = document.getElementById('debugLog');
+    el.innerHTML += '<br>' + msg;
+    el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(message, type=''){
+    const el = document.getElementById('status');
+    el.className = `status ${type}`;
+    el.textContent = message;
+    log('▶ ' + message);
+}
+
+function updateProgress(percent){
+    document.getElementById('progressFill').style.width = percent + '%';
+}
+
+function updateApiBadge(ok, message=''){
+    const badge = document.getElementById('apiBadge');
+    badge.textContent = message || (ok ? 'Groq connecté' : 'API invalide');
+    badge.style.background = ok ? '#16a34a' : '#dc2626';
+}
+
+function getGroqKey(){
+    return document.getElementById('groqApiKey').value.trim();
+}
+
+async function validateGroqKey(){
+    const apiKey = getGroqKey();
+    if(!apiKey){ updateApiBadge(false,'Clé manquante'); return false; }
+    try{
+        const response = await fetch('https://api.groq.com/openai/v1/models',{
+            method:'GET', headers:{ Authorization:`Bearer ${apiKey}` }
+        });
+        if(!response.ok){ updateApiBadge(false,'Clé refusée'); return false; }
+        updateApiBadge(true,'Groq connecté');
+        return true;
+    }catch(err){
+        updateApiBadge(false,'Erreur réseau');
+        return false;
+    }
+}
+
+function animateLiveCursor(){
+    const cursor = document.getElementById('liveCursor');
+    cursor.style.display='block';
+    let dots=0;
+    window.__cursorInterval = setInterval(()=>{
+        if(isPaused) return;
+        dots=(dots+1)%4;
+        cursor.textContent = '⏺ Transcription en cours' + '.'.repeat(dots);
+    },500);
+}
+
+function stopLiveCursor(){
+    clearInterval(window.__cursorInterval);
+    document.getElementById('liveCursor').style.display='none';
+}
+
+function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function interruptibleSleep(ms){
+    const step = 200;
+    let elapsed = 0;
+    while(elapsed < ms){
+        await sleep(Math.min(step, ms - elapsed));
+        elapsed += step;
+        await waitIfPaused();
+    }
+}
+
+async function sendChunkToGroq(file, tentative=1){
+    await waitIfPaused();
+
+    const apiKey = getGroqKey();
+    log(`📤 Envoi Groq : ${file.name} (${Math.round(file.size/1024)} Ko)`);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('model', 'whisper-large-v3');
+    formData.append('response_format', 'verbose_json');
+    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{
+        method:'POST',
+        headers:{ Authorization:`Bearer ${apiKey}` },
+        body:formData
+    });
+
+    if(response.status === 429){
+        const errJson = await response.json().catch(()=>null);
+        const errMsg = errJson?.error?.message || '';
+        let attente = tentative * 20;
+        const matchMin = errMsg.match(/(\d+)m(\d+)s/);
+        const matchSec = errMsg.match(/in (\d+)s/);
+        if(matchMin) attente = parseInt(matchMin[1])*60 + parseInt(matchMin[2]) + 5;
+        else if(matchSec) attente = parseInt(matchSec[1]) + 5;
+
+        log(`⏳ Limite Groq : attente ${attente}s (tentative ${tentative}/5)...`);
+        setStatus(`⏳ Pause ${attente}s — limite Groq atteinte, reprise automatique...`);
+
+        for(let t=attente; t>0; t--){
+            await waitIfPaused();
+            await sleep(1000);
+            if(!isPaused) setStatus(`⏳ Reprise dans ${t}s...`);
+        }
+
+        if(tentative >= 5) throw new Error('Limite Groq dépassée après 5 tentatives');
+        return sendChunkToGroq(file, tentative + 1);
+    }
+
+    if(!response.ok){
+        const errText = await response.text();
+        log('❌ Erreur Groq : ' + errText);
+        throw new Error(`Erreur Groq ${response.status}`);
+    }
+    const json = await response.json();
+    log(`✅ Texte reçu : "${(json.text||'').substring(0,60)}..."`);
+    return json;
+}
+
+async function splitAndTranscribe(file, startChunk = 0, initialText = ''){
+
+    const ffmpeg = createFFmpeg({
+        log: false,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+
+    setStatus('Chargement moteur FFmpeg...');
+    await ffmpeg.load();
+    log('✅ FFmpeg chargé');
+
+    setStatus('Chargement fichier...');
+    ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+    log(`✅ Fichier écrit : ${file.name}`);
+
+    setStatus('Extraction audio WAV...');
+    await ffmpeg.run(
+        '-i', file.name,
+        '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
+        'audio.wav'
+    );
+    log('✅ WAV extrait');
+
+    setStatus('Découpage en morceaux de 5 min...');
+    await ffmpeg.run(
+        '-i', 'audio.wav',
+        '-f', 'segment', '-segment_time', '300', '-c', 'copy',
+        'chunk_%03d.wav'
+    );
+
+    const files = ffmpeg.FS('readdir', '/');
+    const chunks = files.filter(name => name.startsWith('chunk_')).sort();
+    log(`✅ ${chunks.length} morceau(x) total, reprise depuis le morceau ${startChunk}`);
+
+    if(chunks.length === 0) throw new Error('Aucun morceau créé — format non supporté ?');
+
+    let finalText = initialText;
+
+    // Restaurer le texte déjà transcrit dans le textarea
+    if(initialText){
+        document.getElementById('result').value = initialText;
+        updateProgress(Math.floor((startChunk / chunks.length) * 100));
+        log(`♻️ ${startChunk} morceau(x) déjà traité(s), on reprend...`);
+    }
+
+    for(let i = startChunk; i < chunks.length; i++){
+
+        if(isPaused){
+            setStatus(`⏸ En pause après le morceau ${i}/${chunks.length}`);
+            await waitIfPaused();
+        }
+
+        const percent = Math.floor(((i+1)/chunks.length)*100);
+        updateProgress(percent);
+        setStatus(`Transcription ${i+1}/${chunks.length}...`);
+
+        const data = ffmpeg.FS('readFile', chunks[i]);
+        log(`📦 ${chunks[i]} : ${Math.round(data.length/1024)} Ko`);
+
+        const blob = new Blob([data.buffer], {type:'audio/wav'});
+        const chunkFile = new File([blob], chunks[i], {type:'audio/wav'});
+
+        const json = await sendChunkToGroq(chunkFile);
+        finalText += '\n' + (json.text || '');
+
+        const textarea = document.getElementById('result');
+        textarea.value = finalText;
+        textarea.scrollTop = textarea.scrollHeight;
+
+        // ── Sauvegarde automatique après chaque chunk ──
+        saveSession(finalText, i + 1, chunks.length, file.name);
+        log(`💾 Session sauvegardée (${i+1}/${chunks.length})`);
+
+        if(i < chunks.length - 1){
+            log('⏸ Pause 3s avant le prochain morceau...');
+            await interruptibleSleep(3000);
+        }
+    }
+
+    return finalText;
+}
+
+function setPaused(paused){
+    isPaused = paused;
+    const pauseBtn = document.getElementById('pauseBtn');
+    const overlay = document.getElementById('pauseOverlay');
+    const cursor = document.getElementById('liveCursor');
+
+    if(paused){
+        pauseBtn.textContent = '▶ Reprendre';
+        pauseBtn.classList.add('resuming');
+        overlay.style.display = 'block';
+        cursor.textContent = '⏸ En pause...';
+        log('⏸ Transcription mise en pause');
+    } else {
+        pauseBtn.textContent = '⏸ Pause';
+        pauseBtn.classList.remove('resuming');
+        overlay.style.display = 'none';
+        cursor.textContent = '⏺ Transcription en cours...';
+        log('▶ Transcription reprise');
+        if(resumeResolve){ resumeResolve(); resumeResolve = null; }
+    }
+}
+
+async function startTranscription(forceRestart = false){
+    document.getElementById('debugLog').innerHTML = '📋 Démarrage...';
+    document.getElementById('resumeBanner').style.display = 'none';
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('pauseBtn').disabled = false;
+    isPaused = false;
+    resumeResolve = null;
+
+    // Vérifier s'il faut reprendre une session sauvegardée
+    let startChunk = 0;
+    let initialText = '';
+
+    if(!forceRestart){
+        const session = loadSession();
+        if(session){
+            startChunk = session.chunkIndex;
+            initialText = session.text;
+            log(`♻️ Reprise session : morceau ${startChunk}, ${initialText.length} caractères`);
+        }
+    } else {
+        clearSession();
+    }
+
+    try{
+        const fileInput = document.getElementById('audioFile');
+        if(!fileInput.files.length){ alert('Sélectionne le fichier audio (même fichier qu\'avant)'); return; }
+
+        const f = fileInput.files[0];
+        log(`📂 ${f.name} — ${Math.round(f.size/1024/1024)} Mo`);
+
+        const valid = await validateGroqKey();
+        if(!valid) throw new Error('Clé Groq invalide');
+
+        animateLiveCursor();
+        const finalText = await splitAndTranscribe(f, startChunk, initialText);
+        document.getElementById('result').value = finalText;
+        stopLiveCursor();
+        updateProgress(100);
+        setStatus('Transcription terminée ✅','success');
+        clearSession();
+        log('🗑️ Session sauvegardée effacée (transcription complète)');
+        document.getElementById('downloadBtn').disabled = false;
+
+    }catch(err){
+        console.error(err);
+        stopLiveCursor();
+        log('💥 ERREUR : ' + err.message);
+        setStatus(err.message || 'Erreur','error');
+    } finally {
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('pauseBtn').textContent = '⏸ Pause';
+        document.getElementById('pauseBtn').classList.remove('resuming');
+        document.getElementById('pauseOverlay').style.display = 'none';
+        isPaused = false;
+    }
+}
+
+// ── Analyse Anthropic ────────────────────────────────────────────────
+async function analyseTranscription(){
+    const transcription = document.getElementById('result').value.trim();
+    if(!transcription){ alert('Aucune transcription à analyser.'); return; }
+
+    const groqKey = getGroqKey();
+    if(!groqKey){ alert('Renseigne ta clé API Groq pour utiliser l\'analyse.'); return; }
+
+    const btn = document.getElementById('analyseBtn');
+    const statusEl = document.getElementById('analyseStatus');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analyse en cours...';
+    statusEl.className = 'analyseStatus loading';
+    statusEl.textContent = '⏳ Envoi à Groq, patientez...';
+    document.getElementById('analyseResult').style.display = 'none';
+    document.getElementById('downloadAnalyseBtn').disabled = true;
+
+    const prompt = `Tu es un assistant spécialisé dans l'analyse de réunions professionnelles.
+
+Voici la transcription d'une réunion :
+
+---
+${transcription.substring(0, 24000)}
+---
+
+Analyse cette transcription et réponds UNIQUEMENT en JSON valide (sans texte avant ni après, sans balises markdown) avec exactement cette structure :
+{
+  "resume": "Résumé clair et concis de la réunion en 3-5 phrases.",
+  "points_essentiels": "Liste des points essentiels discutés, un par ligne, chaque ligne commence par •",
+  "decisions": "Liste des décisions prises, une par ligne, chaque ligne commence par •. Si aucune décision, écrire 'Aucune décision formelle identifiée.'",
+  "actions": [
+    { "qui": "Prénom ou rôle de la personne responsable (ou 'Non assigné')", "action": "Description précise de l'action à mener" }
+  ]
+}`;
+
+    try{
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${groqKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                max_tokens: 4000,
+                temperature: 0.2,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+
+        if(!response.ok){
+            const err = await response.json().catch(()=>null);
+            throw new Error(err?.error?.message || `Erreur API Groq ${response.status}`);
+        }
+
+        const data = await response.json();
+        const rawText = data.choices?.[0]?.message?.content || '';
+
+        // Nettoyer et parser le JSON
+        const clean = rawText.replace(/```json|```/g, '').trim();
+        let parsed;
+        try{ parsed = JSON.parse(clean); }
+        catch(e){ throw new Error('Réponse invalide (JSON mal formé). Réessaie.'); }
+
+        // Afficher les résultats
+        document.getElementById('resumeContent').textContent = parsed.resume || '—';
+        document.getElementById('pointsContent').textContent = parsed.points_essentiels || '—';
+        document.getElementById('decisionsContent').textContent = parsed.decisions || '—';
+
+        // Actions
+        const actionsEl = document.getElementById('actionsContent');
+        actionsEl.innerHTML = '';
+        const actions = parsed.actions || [];
+        if(actions.length === 0){
+            actionsEl.innerHTML = '<p style="color:#64748b;font-size:14px;">Aucune action identifiée.</p>';
+        } else {
+            actions.forEach(a => {
+                const div = document.createElement('div');
+                div.className = 'action-item';
+                const qui = (a.qui || 'Non assigné').trim();
+                div.innerHTML = `
+                    <span class="action-who ${qui === 'Non assigné' ? 'unknown' : ''}">${qui}</span>
+                    <span class="action-text">${a.action || ''}</span>
+                `;
+                actionsEl.appendChild(div);
+            });
+        }
+
+        document.getElementById('analyseResult').style.display = 'block';
+        document.getElementById('downloadAnalyseBtn').disabled = false;
+        statusEl.className = 'analyseStatus success';
+        statusEl.textContent = '✅ Analyse terminée';
+
+        document.getElementById('analyseResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch(err){
+        console.error(err);
+        statusEl.className = 'analyseStatus error';
+        statusEl.textContent = '❌ ' + (err.message || 'Erreur lors de l\'analyse');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Analyser la transcription';
+    }
+}
+
+function downloadAnalyse(){
+    const resume = document.getElementById('resumeContent').textContent;
+    const points = document.getElementById('pointsContent').textContent;
+    const decisions = document.getElementById('decisionsContent').textContent;
+    const actionsEl = document.getElementById('actionsContent');
+    const actionItems = actionsEl.querySelectorAll('.action-item');
+
+    let actionsText = '';
+    actionItems.forEach(item => {
+        const qui = item.querySelector('.action-who')?.textContent || '';
+        const action = item.querySelector('.action-text')?.textContent || '';
+        actionsText += `  • [${qui}] ${action}\n`;
+    });
+    if(!actionsText) actionsText = '  Aucune action identifiée.\n';
+
+    const date = new Date().toLocaleDateString('fr-FR');
+    const content = `ANALYSE DE RÉUNION — ${date}
+${'='.repeat(50)}
+
+📋 RÉSUMÉ
+${resume}
+
+💡 POINTS ESSENTIELS
+${points}
+
+✅ DÉCISIONS PRISES
+${decisions}
+
+🎯 ACTIONS À MENER
+${actionsText}`;
+
+    const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analyse_reunion_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+// ────────────────────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', ()=>{
+    // Vérifier si une session précédente existe
+    checkAndShowResumeBanner();
+
+    document.getElementById('startBtn').addEventListener('click', ()=> startTranscription(false));
+
+    document.getElementById('resumeYesBtn').addEventListener('click', ()=>{
+        document.getElementById('resumeBanner').style.display = 'none';
+        startTranscription(false);
+    });
+
+    document.getElementById('resumeNoBtn').addEventListener('click', ()=>{
+        clearSession();
+        document.getElementById('resumeBanner').style.display = 'none';
+        log('🗑️ Session précédente effacée');
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ setPaused(!isPaused); });
+
+    document.getElementById('downloadBtn').addEventListener('click', ()=>{
+        const text = document.getElementById('result').value;
+        if(!text.trim()) return;
+        const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0,10);
+        a.download = `transcription_${date}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importTxt').addEventListener('change', (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+            document.getElementById('result').value = ev.target.result;
+            document.getElementById('downloadBtn').disabled = false;
+            document.getElementById('analyseBtn').disabled = false;
+            setStatus(`📂 Fichier chargé : ${file.name}`, 'success');
+        };
+        reader.readAsText(file, 'utf-8');
+        e.target.value = ''; // reset pour pouvoir recharger le même fichier
+    });
+
+    document.getElementById('groqApiKey').addEventListener('input', ()=>{
+        clearTimeout(window.__groqTimer);
+        window.__groqTimer = setTimeout(()=>{ validateGroqKey(); }, 500);
+    });
+
+    // ── Analyse ──
+    document.getElementById('analyseBtn').addEventListener('click', analyseTranscription);
+    document.getElementById('downloadAnalyseBtn').addEventListener('click', downloadAnalyse);
+});
+</script>
+</body>
+</html>
