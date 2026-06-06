@@ -672,10 +672,17 @@ async function analyseLongueTranscription(groqKey, transcription, instruction, l
         blocs.push(transcription.substring(i, i+tailleBloc));
     }
 
+    var statusEl = document.getElementById('analyseStatus');
     const resumes = [];
     for(let i=0; i<blocs.length; i++){
-        const prompt = instruction + "\n\nBLOC " + (i+1) + "/" + blocs.length + "\n---\n" + blocs[i] + "\n---";
+        const pctBloc = Math.floor((i / blocs.length) * 100);
         
+        // Mise à jour visuelle pour le suivi de la préanalyse
+        if(statusEl) statusEl.textContent = `⏳ Pré-analyse du texte : ${pctBloc}% (Bloc ${i + 1}/${blocs.length})...`;
+        setStatus(`Analyse : Pré-analyse ${pctBloc}%...`);
+        updateProgress(Math.floor(pctBloc * 0.2)); // Mappe la préanalyse sur les 20 premiers % de la barre générale
+
+        const prompt = instruction + "\n\nBLOC " + (i+1) + "/" + blocs.length + "\n---\n" + blocs[i] + "\n---";
         let tentative = 0;
         let reussi = false;
         
@@ -728,7 +735,7 @@ async function analyseTranscription(){
     btn.disabled = true;
     btn.textContent = '⏳ Analyse en cours...';
     statusEl.className = 'analyseStatus loading';
-    statusEl.textContent = '⏳ Analyse en 3 étapes, veuillez patienter...';
+    statusEl.textContent = '⏳ Initialisation de l\'analyse...';
     
     setStatus('Analyse de la réunion lancée...');
     updateProgress(0);
@@ -751,7 +758,7 @@ async function analyseTranscription(){
         setStep(1,'active');
         statusEl.textContent = '⏳ Étape 1/3 — Informations générales, participants, ordre du jour...';
         setStatus('Analyse : Étape 1/3 (Infos & Participants)...');
-        updateProgress(33);
+        updateProgress(35);
 
         var odjInstruction = odjManuel
             ? 'ORDRE DU JOUR FOURNI :\n' + odjManuel + '\nUtilise cet ordre du jour, complète si nécessaire.\n'
@@ -781,7 +788,7 @@ async function analyseTranscription(){
         setStep(2,'active');
         statusEl.textContent = '⏳ Étape 2/3 — Rédaction du résumé détaillé et points essentiels...';
         setStatus('Analyse : Étape 2/3 (Résumé détaillé)...');
-        updateProgress(66);
+        updateProgress(70);
 
         var prompt2 = 'Tu es un expert en procès-verbaux.\nOrdre du jour :\n' + p1.ordre_du_jour
             + '\n\nTRANSCRIPTION :\n---\n' + transcLongue + '\n---\n'
