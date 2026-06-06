@@ -6,7 +6,7 @@
 <title>PV Meeting - Transcription Groq</title>
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 <style>
-body{ margin:0; padding:40px 40px 120px 40px; background:#0f172a; color:white; font-family:Arial,sans-serif; }
+body{ margin:0; padding:40px; background:#0f172a; color:white; font-family:Arial,sans-serif; }
 .container{ max-width:1000px; margin:auto; background:#111827; padding:30px; border-radius:20px; }
 h1{ color:#38bdf8; }
 .field{ margin-bottom:20px; }
@@ -30,33 +30,8 @@ button:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
 .debug{ margin-top:10px; padding:10px; background:#1e293b; border-radius:8px; font-size:13px; color:#94a3b8; max-height:150px; overflow-y:auto; font-family:monospace; }
 textarea{ width:100%; min-height:450px; margin-top:20px; padding:15px; border-radius:12px; border:1px solid #334155; background:#020617; color:#e2e8f0; resize:vertical; box-sizing:border-box; }
 #liveCursor{ display:none; margin-top:10px; color:#38bdf8; font-weight:bold; }
-#pauseOverlay{ display:none; padding:10px; background:#b45309; border-radius:8px; margin-top:10px; text-align:center; font-weight:bold; }
-
-/* ── Barre de progression globale fixe tout en bas de la page ── */
-.bottom-progress-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: #1e293b;
-    box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6);
-    padding: 16px 40px;
-    box-sizing: border-box;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.bottom-progress-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 14px;
-    font-weight: bold;
-    color: #38bdf8;
-}
-.progressBar{ width:100%; height:16px; background:#0f172a; border-radius:999px; overflow:hidden; border: 1px solid #334155; }
+.progressBar{ width:100%; height:20px; background:#1e293b; border-radius:999px; overflow:hidden; margin-top:20px; }
 .progressFill{ height:100%; width:0%; background:#0ea5e9; transition:width .3s; }
-
 #downloadBtn{ background:#6366f1; }
 #downloadBtn:hover:not(:disabled){ background:#4f46e5; }
 #downloadBtn:disabled{ background:#334155; color:#64748b; cursor:not-allowed; }
@@ -152,6 +127,7 @@ textarea{ width:100%; min-height:450px; margin-top:20px; padding:15px; border-ra
 
 <div class="status" id="status"></div>
 <div id="liveCursor">⏺ Transcription en cours...</div>
+<div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
 <div class="debug" id="debugLog">📋 Journal de bord...</div>
 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px;">
     <label for="importTxt" style="margin:0;">
@@ -226,25 +202,20 @@ textarea{ width:100%; min-height:450px; margin-top:20px; padding:15px; border-ra
 </div>
 </div>
 
-<div class="bottom-progress-bar">
-    <div class="bottom-progress-info">
-        <span id="progressLabel">Prêt à transcrire</span>
-        <span id="progressText">0%</span>
-    </div>
-    <div class="progressBar">
-        <div class="progressFill" id="progressFill"></div>
-    </div>
-</div>
-
 <script>
 const { createFFmpeg, fetchFile } = FFmpeg;
 
 const SAVE_KEY = 'pv_meeting_session';
 
+// ── Persistance localStorage ─────────────────────────────────────────
 function saveSession(text, chunkIndex, totalChunks, fileName){
     try{
         localStorage.setItem(SAVE_KEY, JSON.stringify({
-            text, chunkIndex, totalChunks, fileName, savedAt: new Date().toISOString()
+            text,
+            chunkIndex,   
+            totalChunks,
+            fileName,
+            savedAt: new Date().toISOString()
         }));
     }catch(e){ console.warn('Impossible de sauvegarder la session', e); }
 }
@@ -289,36 +260,25 @@ function waitIfPaused(){
 function log(msg){
     console.log(msg);
     const el = document.getElementById('debugLog');
-    if (el) {
-        el.innerHTML += '<br>' + msg;
-        el.scrollTop = el.scrollHeight;
-    }
+    el.innerHTML += '<br>' + msg;
+    el.scrollTop = el.scrollHeight;
 }
 
 function setStatus(message, type=''){
     const el = document.getElementById('status');
-    if (el) {
-        el.className = `status ${type}`;
-        el.textContent = message;
-    }
-    const labelEl = document.getElementById('progressLabel');
-    if (labelEl) labelEl.textContent = message;
+    el.className = `status ${type}`;
+    el.textContent = message;
     log('▶ ' + message);
 }
 
 function updateProgress(percent){
-    const fillEl = document.getElementById('progressFill');
-    if (fillEl) fillEl.style.width = percent + '%';
-    const textEl = document.getElementById('progressText');
-    if (textEl) textEl.textContent = percent + '%';
+    document.getElementById('progressFill').style.width = percent + '%';
 }
 
 function updateApiBadge(ok, message=''){
     const badge = document.getElementById('apiBadge');
-    if (badge) {
-        badge.textContent = message || (ok ? 'Groq connecté' : 'API invalide');
-        badge.style.background = ok ? '#16a34a' : '#dc2626';
-    }
+    badge.textContent = message || (ok ? 'Groq connecté' : 'API invalide');
+    badge.style.background = ok ? '#16a34a' : '#dc2626';
 }
 
 function getGroqKey(){
@@ -343,7 +303,6 @@ async function validateGroqKey(){
 
 function animateLiveCursor(){
     const cursor = document.getElementById('liveCursor');
-    if (!cursor) return;
     cursor.style.display='block';
     let dots=0;
     window.__cursorInterval = setInterval(()=>{
@@ -355,8 +314,7 @@ function animateLiveCursor(){
 
 function stopLiveCursor(){
     clearInterval(window.__cursorInterval);
-    const cursor = document.getElementById('liveCursor');
-    if (cursor) cursor.style.display='none';
+    document.getElementById('liveCursor').style.display='none';
 }
 
 function sleep(ms){
@@ -375,6 +333,7 @@ async function interruptibleSleep(ms){
 
 async function sendChunkToGroq(file, tentative=1){
     await waitIfPaused();
+
     const apiKey = getGroqKey();
     log(`📤 Envoi Groq : ${file.name} (${Math.round(file.size/1024)} Ko)`);
     const formData = new FormData();
@@ -420,6 +379,7 @@ async function sendChunkToGroq(file, tentative=1){
 }
 
 async function splitAndTranscribe(file, startChunk = 0, initialText = ''){
+
     const ffmpeg = createFFmpeg({
         log: false,
         corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
@@ -455,6 +415,7 @@ async function splitAndTranscribe(file, startChunk = 0, initialText = ''){
     if(chunks.length === 0) throw new Error('Aucun morceau créé — format non supporté ?');
 
     let finalText = initialText;
+
     if(initialText){
         document.getElementById('result').value = initialText;
         updateProgress(Math.floor((startChunk / chunks.length) * 100));
@@ -462,6 +423,7 @@ async function splitAndTranscribe(file, startChunk = 0, initialText = ''){
     }
 
     for(let i = startChunk; i < chunks.length; i++){
+
         if(isPaused){
             setStatus(`⏸ En pause après le morceau ${i}/${chunks.length}`);
             await waitIfPaused();
@@ -492,6 +454,7 @@ async function splitAndTranscribe(file, startChunk = 0, initialText = ''){
             await interruptibleSleep(3000);
         }
     }
+
     return finalText;
 }
 
@@ -558,6 +521,7 @@ async function startTranscription(forceRestart = false){
         clearSession();
         log('🗑️ Session sauvegardée effacée (transcription complète)');
         document.getElementById('downloadBtn').disabled = false;
+
     }catch(err){
         console.error(err);
         stopLiveCursor();
@@ -597,6 +561,7 @@ async function groqChat(groqKey, messages, maxTokens){
 
 function parseJSONSafe(text){
     var clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
     var braceStart = clean.indexOf('{');
     if(braceStart !== -1){
         var depth = 0;
@@ -611,11 +576,13 @@ function parseJSONSafe(text){
         if(end !== -1) clean = clean.slice(braceStart, end + 1);
         else clean = clean.slice(braceStart);
     }
+
     clean = clean.replace(/:\s*(\d+)\.\s*([,\}\]])/g, ': $10$2');
     clean = clean.replace(/,\s*([\}\]])/g, '$1');
     clean = clean.replace(/("(?:[^"\\]|\\.)*")/g, function(m){
         return m.replace(/\n/g, '\\n').replace(/\r/g, '');
     });
+
     try {
         return JSON.parse(clean);
     } catch(e1) {
@@ -632,7 +599,7 @@ function parseJSONSafe(text){
             return JSON.parse(attempt);
         } catch(e2) {
             console.error('parseJSONSafe échec. Texte reçu :', text);
-            throw new Error('Le modèle n\'a pas renvoyé un JSON valide. Réessaie — cela arrive parfois avec les longues transcriptions. Détail : ' + e1.message);
+            throw new Error('Le modèle n\'a pas renvoyé un JSON valide. Réessaie. Détail : ' + e1.message);
         }
     }
 }
@@ -648,25 +615,23 @@ async function groqChatWithRetry(groqKey, messages, maxTokens, label){
         }catch(e){
             lastErr = e;
             var msg = e.message || '';
-            var matchMin = msg.match(/(\d+)m(\d+)s/);
-            var matchSec = msg.match(/try again in ([0-9.]+)s/i);
-            
-            let tempsAttente = tries * 5000;
-            if(matchMin) {
-                tempsAttente = (parseInt(matchMin[1]) * 60 + parseInt(matchMin[2]) + 2) * 1000;
-            } else if(matchSec) {
-                tempsAttente = (parseFloat(matchSec[1]) + 2) * 1000;
+            var match = msg.match(/try again in ([0-9.]+)s/i);
+            if(match){
+                var waitMs = Math.ceil(parseFloat(match[1]) * 1000);
+                await new Promise(function(r){ setTimeout(r, waitMs); });
+                continue;
             }
-            
-            log(`⏳ [${label}] Limite atteinte. Attente de ${Math.round(tempsAttente/1000)}s...`);
-            await new Promise(function(r){ setTimeout(r, tempsAttente); });
+            if(tries < 5){
+                await new Promise(function(r){ setTimeout(r, 2000); });
+            }
         }
     }
     throw new Error((label||'Étape') + ' : ' + (lastErr ? lastErr.message : 'Erreur inconnue'));
 }
 
 async function analyseLongueTranscription(groqKey, transcription, instruction, label){
-    const tailleBloc = 3000;
+    // Réduction à 2000 caractères par bloc pour éviter le dépassement TPM de Groq
+    const tailleBloc = 2000;
     const blocs = [];
     for(let i=0; i<transcription.length; i+=tailleBloc){
         blocs.push(transcription.substring(i, i+tailleBloc));
@@ -674,53 +639,35 @@ async function analyseLongueTranscription(groqKey, transcription, instruction, l
 
     var statusEl = document.getElementById('analyseStatus');
     const resumes = [];
+    
     for(let i=0; i<blocs.length; i++){
+        // Calcul du pourcentage réel de la phase de pré-analyse (de 0% à 100% de la phase)
         const pctBloc = Math.floor((i / blocs.length) * 100);
-        
-        // Mise à jour visuelle pour le suivi de la préanalyse
         if(statusEl) statusEl.textContent = `⏳ Pré-analyse du texte : ${pctBloc}% (Bloc ${i + 1}/${blocs.length})...`;
-        setStatus(`Analyse : Pré-analyse ${pctBloc}%...`);
-        updateProgress(Math.floor(pctBloc * 0.2)); // Mappe la préanalyse sur les 20 premiers % de la barre générale
-
-        const prompt = instruction + "\n\nBLOC " + (i+1) + "/" + blocs.length + "\n---\n" + blocs[i] + "\n---";
-        let tentative = 0;
-        let reussi = false;
         
-        while (tentative < 5 && !reussi) {
-            try {
-                tentative++;
-                log(`[${label}] Envoi bloc ${i + 1}/${blocs.length} (Tentative ${tentative}/5)`);
-                
-                const rep = await groqChat(groqKey, [{role:'user', content:prompt}], 600);
-                resumes.push(rep);
-                reussi = true;
-                
-                await new Promise(r => setTimeout(r, 1000));
-                
-            } catch(e) {
-                log(`⚠️ [${label}] Erreur sur le bloc ${i + 1} : ${e.message}`);
-                
-                if (tentative >= 5) {
-                    throw new Error(`Échec de l'analyse après 5 tentatives sur le bloc ${i + 1}. : ${e.message}`);
-                }
-                
-                const msg = e.message || '';
-                const matchMin = msg.match(/(\d+)m(\d+)s/);
-                const matchSec = msg.match(/in ([0-9.]+)s/i);
-                
-                let tempsAttente = tentative * 5000;
-                
-                if(matchMin) {
-                    tempsAttente = (parseInt(matchMin[1]) * 60 + parseInt(matchMin[2]) + 2) * 1000;
-                } else if(matchSec) {
-                    tempsAttente = (parseFloat(matchSec[1]) + 2) * 1000;
-                }
-                
-                log(`⏳ Limite atteinte (429). Pause de ${Math.round(tempsAttente/1000)}s avant de réessayer...`);
-                await new Promise(r => setTimeout(r, tempsAttente));
+        // Distribution sur la barre globale : La pré-analyse prend l'intervalle 0% -> 25%
+        updateProgress(Math.floor(pctBloc * 0.25));
+
+        const prompt = instruction + "\n\nImportant : Fais un résumé court pour économiser les jetons.\n\nBLOC " + (i+1) + "/" + blocs.length + "\n---\n" + blocs[i] + "\n---";
+
+        try{
+            const rep = await groqChat(groqKey, [{role:'user', content:prompt}], 400);
+            resumes.push(rep);
+            // Temporisation obligatoire (Pacing) de 1.2s entre chaque bloc
+            await new Promise(r => setTimeout(r, 1200));
+        }catch(e){
+            const m = (e.message||'').match(/try again in ([0-9.]+)s/i);
+            if(m){
+                await new Promise(r=>setTimeout(r, Math.ceil(parseFloat(m[1])*1000) + 1000));
+                i--;
+                continue;
             }
+            throw e;
         }
     }
+
+    if(statusEl) statusEl.textContent = `⏳ Pré-analyse du texte : 100% complétée !`;
+    updateProgress(25);
     return resumes.join("\n\n");
 }
 
@@ -735,11 +682,7 @@ async function analyseTranscription(){
     btn.disabled = true;
     btn.textContent = '⏳ Analyse en cours...';
     statusEl.className = 'analyseStatus loading';
-    statusEl.textContent = '⏳ Initialisation de l\'analyse...';
-    
-    setStatus('Analyse de la réunion lancée...');
-    updateProgress(0);
-
+    statusEl.textContent = '⏳ Initialisation de la pré-analyse...';
     document.getElementById('analyseResult').style.display = 'none';
     document.getElementById('downloadAnalyseBtn').disabled = true;
 
@@ -751,14 +694,14 @@ async function analyseTranscription(){
     var odjManuel = odjManuelEl ? odjManuelEl.value.trim() : '';
     
     try {
+        // Phase Pré-analyse (Prend la barre de 0% à 25%)
         var transcTronquee = await analyseLongueTranscription(groqKey, transcription, 'Résume fidèlement ce bloc de réunion.', 'Préanalyse');
         var transcLongue = transcTronquee;
 
-        // ÉTAPE 1
+        // ÉTAPE 1 (Prend la barre de 25% à 50%)
         setStep(1,'active');
-        statusEl.textContent = '⏳ Étape 1/3 — Informations générales, participants, ordre du jour...';
-        setStatus('Analyse : Étape 1/3 (Infos & Participants)...');
-        updateProgress(35);
+        statusEl.textContent = '⏳ Étape 1/3 : Informations générales, participants, ordre du jour... (25%)';
+        updateProgress(25);
 
         var odjInstruction = odjManuel
             ? 'ORDRE DU JOUR FOURNI :\n' + odjManuel + '\nUtilise cet ordre du jour, complète si nécessaire.\n'
@@ -781,14 +724,13 @@ async function analyseTranscription(){
             + '  "ordre_du_jour": "Liste numérotée des points abordés, un par ligne. ' + odjHint + '"\n'
             + '}';
 
-        var p1 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt1 }], 3000, 'Étape 1');
+        var p1 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt1 }], 2500, 'Étape 1');
         setStep(1,'done');
 
-        // ÉTAPE 2
+        // ÉTAPE 2 (Prend la barre de 50% à 75%)
         setStep(2,'active');
-        statusEl.textContent = '⏳ Étape 2/3 — Rédaction du résumé détaillé et points essentiels...';
-        setStatus('Analyse : Étape 2/3 (Résumé détaillé)...');
-        updateProgress(70);
+        statusEl.textContent = '⏳ Étape 2/3 : Rédaction du résumé détaillé et points essentiels... (50%)';
+        updateProgress(50);
 
         var prompt2 = 'Tu es un expert en procès-verbaux.\nOrdre du jour :\n' + p1.ordre_du_jour
             + '\n\nTRANSCRIPTION :\n---\n' + transcLongue + '\n---\n'
@@ -799,14 +741,13 @@ async function analyseTranscription(){
             + '}\n'
             + 'IMPORTANT : points_essentiels doit contenir 5 à 10 points synthétiques et actionables.';
 
-        var p2 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt2 }], 4000, 'Étape 2');
+        var p2 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt2 }], 3000, 'Étape 2');
         setStep(2,'done');
 
-        // ÉTAPE 3
+        // ÉTAPE 3 (Prend la barre de 75% à 100%)
         setStep(3,'active');
-        statusEl.textContent = '⏳ Étape 3/3 — Actions, décisions et votes...';
-        setStatus('Analyse : Étape 3/3 (Plans d\'actions & Décisions)...');
-        updateProgress(90);
+        statusEl.textContent = '⏳ Étape 3/3 : Actions, décisions et votes... (75%)';
+        updateProgress(75);
 
         var participants = (p1.participants || []).join(', ');
         var prompt3 = 'Tu es un expert en procès-verbaux. Participants identifiés : ' + participants
@@ -816,7 +757,7 @@ async function analyseTranscription(){
             + '  "decisions": "Liste des décisions formellement prises, une par ligne commençant par •. Si aucune : \'Aucune décision formelle identifiée.\'",\n'
             + '  "actions": [\n'
             + '    {\n'
-            + '      "qui": "Prénom/Nom ou rôle EXACT de la personne responsable (or \'Non assigné\')",\n'
+            + '      "qui": "Prénom/Nom ou rôle EXACT de la personne responsable (ou \'Non assigné\')",\n'
             + '      "action": "Description précise de l\'action à mener",\n'
             + '      "echeance": "Échéance mentionnée ou \'Non précisée\'",\n'
             + '      "contexte": "Bref contexte ou raison de cette action"\n'
@@ -835,18 +776,17 @@ async function analyseTranscription(){
             + '}\n'
             + 'IMPORTANT : Si aucun vote : "votes": []. Inclure TOUTES les actions.';
 
-        var p3 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt3 }], 4000, 'Étape 3');
+        var p3 = await groqChatWithRetry(groqKey, [{ role: 'user', content: prompt3 }], 3000, 'Étape 3');
         setStep(3,'done');
 
+        // Assemblage final
         var parsed = Object.assign({}, p1, p2, p3);
         renderAnalyse(parsed);
 
         progDiv.style.display = 'none';
         statusEl.className = 'analyseStatus success';
-        statusEl.textContent = '✅ Analyse complète terminée';
-        setStatus('Analyse terminée avec succès ✅', 'success');
+        statusEl.textContent = '✅ Analyse complète terminée ! (100%)';
         updateProgress(100);
-        
         document.getElementById('downloadAnalyseBtn').disabled = false;
         document.getElementById('analyseResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -855,7 +795,6 @@ async function analyseTranscription(){
         progDiv.style.display = 'none';
         statusEl.className = 'analyseStatus error';
         statusEl.textContent = '❌ ' + (err.message || 'Erreur lors de l\'analyse');
-        setStatus('Erreur lors de l\'analyse ❌', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '✨ Analyser la transcription';
